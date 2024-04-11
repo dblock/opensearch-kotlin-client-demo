@@ -5,7 +5,8 @@ import io.github.acm19.aws.interceptor.http.AwsRequestSigningApacheInterceptor
 import org.apache.http.HttpRequestInterceptor
 import org.apache.http.client.methods.HttpPost
 import org.apache.http.entity.ByteArrayEntity
-import org.apache.http.entity.ContentType.APPLICATION_JSON
+import org.apache.http.entity.StringEntity
+import org.apache.http.entity.ContentType
 import org.apache.http.impl.client.CloseableHttpClient
 import org.apache.http.impl.client.HttpClients
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -24,10 +25,10 @@ import org.opensearch.client.opensearch.core.msearch.MultisearchHeader
 import org.opensearch.client.opensearch.core.msearch.RequestItem
 import org.opensearch.client.transport.aws.AwsSdk2Transport
 import org.opensearch.client.transport.aws.AwsSdk2TransportOptions
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
 import software.amazon.awssdk.auth.signer.Aws4Signer
 import software.amazon.awssdk.http.apache.ApacheHttpClient
-import software.amazon.awssdk.regions.Region.US_EAST_1
+import software.amazon.awssdk.regions.Region.US_WEST_2
 import software.amazon.awssdk.utils.IoUtils.toUtf8String
 import java.io.ByteArrayOutputStream
 
@@ -43,21 +44,20 @@ private const val FIELD31 = "field31"
 
 private const val MY_INPUT = "AA"
 
-private const val HOST = "cluster.host.name.com"
+private const val HOST = "search-dblock-test-opensearch-27-xwd6xrwtykennk3q7uu7t7dtpi.us-west-2.es.amazonaws.com"
 private const val URI = "https://$HOST/_msearch"
 
 private const val ES = "es"
-private const val PROFILE_NAME = "abcd"
 
-class MyMultiSearchTest2 {
+class MyMultiSearchTest {
 
     private val msearchRequest = msearchRequest(listOf(INDEX1, INDEX2, INDEX3), MY_INPUT)
 
     private val httpRequestInterceptor: HttpRequestInterceptor = AwsRequestSigningApacheInterceptor(
         ES,
         Aws4Signer.create(),
-        ProfileCredentialsProvider.builder().profileName(PROFILE_NAME).build(),
-        US_EAST_1
+        DefaultCredentialsProvider.create(),
+        US_WEST_2
     )
 
     private val httpClient: CloseableHttpClient = HttpClients.custom()
@@ -82,7 +82,7 @@ class MyMultiSearchTest2 {
     private val awsSdk2Transport = AwsSdk2Transport(
         sdkHttpClient,
         HOST,
-        US_EAST_1,
+        US_WEST_2,
         transportOptions
     )
     private val openSearchClient = OpenSearchClient(
@@ -145,7 +145,7 @@ class MyMultiSearchTest2 {
     @Test
     fun testHttpClient1() {
         val request = HttpPost(URI)
-        request.entity = ByteArrayEntity(toByteArray(msearchRequest), APPLICATION_JSON)
+        request.entity = ByteArrayEntity(toByteArray(msearchRequest), ContentType.create("application/json", "UTF-8"));
         val response = httpClient.execute(request)
         val content = response.entity.content
         println(toUtf8String(content))
@@ -171,12 +171,12 @@ class MyMultiSearchTest2 {
         query.append("\n")
         println(query.toString())
         val request = HttpPost(URI)
-        request.entity = ByteArrayEntity(toByteArray(query.toString()), APPLICATION_JSON)
+        request.entity = StringEntity(query.toString(), ContentType.create("application/json", "UTF-8"));
         val response = httpClient.execute(request)
         val content = response.entity.content
         println(toUtf8String(content))
         content.close()
         assertEquals(200, response.statusLine.statusCode)
-        // {"error":{"root_cause":[{"type":"illegal_argument_exception","reason":"The msearch request must be terminated by a newline [\n]"}],"type":"illegal_argument_exception","reason":"The msearch request must be terminated by a newline [\n]"},"status":400}
+        // {"error":{"root_cause":[{"type":"illegal_argument_exception","reason":"The msearch request must be terminated by a newline [nn]"}],"type":"illegal_argument_exception","reason":"The msearch request must be terminated by a newline [\n]"},"status":400}
     }
 }
